@@ -34,19 +34,23 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
-def render_template(template_name: str, request: Request, context: Optional[Dict[str, Any]] = None) -> Response:
+def render_template(template_name: str, request: Request, context: Optional[Dict[str, Any]] = None) -> HTMLResponse:
     """
-    Universal template renderer compatible with both modern Starlette (0.36+, FastAPI >= 0.108.0)
-    and legacy Starlette (< 0.36) to prevent TypeError: unhashable type: 'dict'.
+    Universal template renderer using direct Jinja2 rendering.
+    Completely avoids Starlette TemplateResponse signature incompatibilities and 'unhashable type dict' errors.
     """
     ctx = context.copy() if context else {}
     ctx["request"] = request
     try:
-        # Modern Starlette: TemplateResponse(request=request, name=template_name, context=ctx)
-        return templates.TemplateResponse(request=request, name=template_name, context=ctx)
-    except TypeError:
-        # Legacy Starlette: TemplateResponse(template_name, ctx)
-        return templates.TemplateResponse(template_name, ctx)
+        template = templates.get_template(template_name)
+        return HTMLResponse(content=template.render(ctx))
+    except Exception as e:
+        logger.error(f"Error rendering template {template_name}: {e}", exc_info=True)
+        file_path = os.path.join(TEMPLATES_DIR, template_name)
+        if os.path.exists(file_path):
+            with open(file_path, "r", encoding="utf-8") as tf:
+                return HTMLResponse(content=tf.read())
+        return HTMLResponse(content=f"<h1>Template Rendering Error</h1><p>{e}</p>", status_code=500)
 
 # Include API Routers
 app.include_router(auth.router)
@@ -97,85 +101,57 @@ async def on_startup():
             )
             logger.info(f"Initial default user created with UUID {default_user.uuid}")
 
-        # Seed default nodes with Iran Clean IP and Operator-specific Presets
+        # Seed default nodes prioritizing direct Railway deployment (stanngv2 standard)
         existing_nodes = repo.list_nodes()
-        if not existing_nodes:
-            # 1. Clean IP MCI (Hamrah Aval)
+        existing_names = [n.name for n in existing_nodes]
+        
+        # 1. Railway Direct VLESS WS (Pure Railway without Cloudflare)
+        if not any("ریل‌وی مستقیم" in name for name in existing_names):
             repo.create_node(
-                name="miliconfig • 🇮🇷 همراه اول (MCI Clean IP)",
+                name="miliconfig • 🚂 ریل‌وی مستقیم (Railway Direct)",
                 protocol="vless",
-                address="104.16.132.229",
+                address="",  # Automatically resolves to current Railway domain e.g. milinewc2-production.up.railway.app
                 port=443,
                 network="ws",
                 tls=True,
                 path="/?ed=2048",
-                region="IR-MCI"
+                region="Railway"
             )
-            # 2. Clean IP MTN (Irancell)
+        # 2. Railway Anti-DPI Fragment
+        if not any("ضد فیلتر" in name for name in existing_names):
             repo.create_node(
-                name="miliconfig • 🇮🇷 ایرانسل (MTN Clean IP)",
+                name="miliconfig • ⚡ ریل‌وی ضد فیلتر (Railway Fragment)",
                 protocol="vless",
-                address="104.17.147.22",
+                address="",
                 port=443,
                 network="ws",
                 tls=True,
-                path="/?ed=2048",
-                region="IR-MTN"
+                path="/ws",
+                region="Railway-Fragment"
             )
-            # 3. Clean IP WiFi (Mokhaberat & ADSL)
+        # 3. Railway xHTTP
+        if not any("xHTTP" in name for name in existing_names):
             repo.create_node(
-                name="miliconfig • 🇮🇷 مخابرات و وای‌فای (WiFi Clean IP)",
+                name="miliconfig • 🚀 ریل‌وی xHTTP (Railway xHTTP)",
                 protocol="vless",
-                address="141.101.90.10",
+                address="",
                 port=443,
-                network="ws",
+                network="xhttp",
                 tls=True,
-                path="/?ed=2048",
-                region="IR-WiFi"
+                path="/xhttp",
+                region="Railway-xHTTP"
             )
-            # 4. Clean CDN Host
+        # 4. Railway Trojan Direct
+        if not any("تروجان ریل‌وی" in name for name in existing_names):
             repo.create_node(
-                name="miliconfig • ⚡ کلودفلر تمیز (CDN)",
-                protocol="vless",
-                address="speed.cloudflare.com",
-                port=443,
-                network="ws",
-                tls=True,
-                path="/?ed=2048",
-                region="CF"
-            )
-            # 5. Direct TLS
-            repo.create_node(
-                name="miliconfig • 🛡️ ریلوِی مستقیم (Direct TLS)",
-                protocol="vless",
-                address="",  # Automatically resolves to the public request host domain
-                port=443,
-                network="ws",
-                tls=True,
-                path="/?ed=2048",
-                region="US"
-            )
-            # 6. Trojan Clean IP MCI
-            repo.create_node(
-                name="miliconfig • 🔒 تروجان همراه اول (MCI)",
+                name="miliconfig • 🔒 تروجان ریل‌وی (Railway Trojan)",
                 protocol="trojan",
-                address="104.16.132.229",
+                address="",
                 port=443,
                 network="ws",
                 tls=True,
                 path="/?ed=2048",
-                region="IR-MCI"
-            )
-            # 7. Trojan Clean IP MTN
-            repo.create_node(
-                name="miliconfig • 🔒 تروجان ایرانسل (MTN)",
-                protocol="trojan",
-                address="104.17.147.22",
-                port=443,
-                network="ws",
-                tls=True,
-                path="/?ed=2048",
-                region="IR-MTN"
+                region="Railway-Trojan"
             )
 
         # Seed default proxy IPs if none exist

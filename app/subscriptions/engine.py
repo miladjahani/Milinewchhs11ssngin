@@ -241,6 +241,13 @@ class SubscriptionEngine:
                 }
                 alpn_val = node.alpn or "h2,http/1.1"
                 ob["tls"]["alpn"] = [a.strip() for a in alpn_val.split(",") if a.strip()]
+                # Fragment Anti-DPI for direct Railway connection (matches stanngv2 technique)
+                if "railway.app" in domain or "railway.app" in addr or "Fragment" in node.name or "ضد فیلتر" in node.name:
+                    ob["tls"]["fragment"] = {
+                        "enabled": True,
+                        "size": "10-30",
+                        "sleep": "10-20"
+                    }
 
             ws_path = node.path or "/?ed=2048"
             if not ws_path.startswith("/"):

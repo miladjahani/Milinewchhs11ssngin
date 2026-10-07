@@ -26,8 +26,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application files
 COPY . .
 
-# Ensure start.sh is executable and chown working directory
-RUN chmod +x start.sh && chown -R miliconfig:miliconfig /home/miliconfig/app
+# Ensure scripts are executable and ownership is set
+RUN chmod +x start.sh entrypoint.sh 2>/dev/null || true
+RUN chown -R miliconfig:miliconfig /home/miliconfig/app
 
 # Switch to non-root user
 USER miliconfig
@@ -39,5 +40,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD python3 -c "import urllib.request, os; port = os.environ.get('PORT', '8000'); urllib.request.urlopen(f'http://127.0.0.1:{port}/health')" || exit 1
 
-# Production startup command using start.sh wrapper
-CMD ["sh", "start.sh"]
+# Production startup command matching stanngv2 standard
+CMD ["python3", "main.py"]

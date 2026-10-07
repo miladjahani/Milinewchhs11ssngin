@@ -1,7 +1,8 @@
 /**
- * MILICONFIG - Cloudflare Worker Unblocked Gateway
- *
- * قابل کپی مستقیم در داشبورد Cloudflare -> Workers & Pages -> Create Worker
+ * MILICONFIG - Cloudflare Pages & Workers Unblocked Edge Gateway
+ * 
+ * این اسکریپت تمام ترافیک پنل ادمین، سابسکریپشن‌ها و کانکشن‌های وب‌سوکت را
+ * از بستر شبکه جهانی کلودفلر (بدون فیلتر در ایران) به بک‌اند ریل‌وی هدایت می‌کند.
  */
 
 const BACKEND_DOMAIN = "milinewc2-production.up.railway.app";
@@ -57,6 +58,7 @@ export default {
           newHeaders.set("Location", locUrl.toString());
         }
       } catch (e) {
+        // Fallback relative redirect
         if (location.startsWith("/")) {
           newHeaders.set("Location", location);
         }
